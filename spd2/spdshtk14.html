@@ -178,6 +178,8 @@ var canvas = document.getElementById("canvas");
   
     input.addEventListener("input", function()
     {
+    
+      console.log("mobileInput =", JSON.stringify(input.value));
         Module.ccall(
             'mobile_set_text',
             null,
