@@ -169,15 +169,19 @@ printErr: function(text) {
 Module.onRuntimeInitialized = function()
 {
     var input = document.getElementById("mobileInput");
-  
-  var canvas = document.getElementById("canvas");
+    var canvas = document.getElementById("canvas");
+
     canvas.addEventListener("click", function() {
+        input.value = "";
         input.focus();
     });
+
     canvas.addEventListener("touchend", function(e) {
+        e.preventDefault();
+        input.value = "";
         input.focus();
     });
-  
+
     input.addEventListener("input", function()
     {
         Module.ccall(
@@ -198,7 +202,7 @@ Module.onRuntimeInitialized = function()
                 [],
                 []
             );
-    
+
             input.value = "";
         }
     });
