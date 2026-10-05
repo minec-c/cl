@@ -231,87 +231,107 @@ printErr: function(text) {
 //     });
 // };
 
+JavaScript
 Module.onRuntimeInitialized = function() {
     var input = document.getElementById("mobileInput");
     var canvas = document.getElementById("canvas");
+    var c_text = "";
 
-    function focusInput() {
-        // Don't sync from C to input - this is what pollutes Samsung cache
+    function getCText(){
+        try {
+            var s = Module.ccall('mobile_get_current_text', 'string', [], []);
+            c_text = s? s : "";
+        } catch(e){}
+        return c_text;
+    }
+    function setCText(s){
+        c_text = s;
+        Module.ccall('mobile_set_text', null, ['string'], [c_text]);
+    }
+
+    function focusInput(){
+        getCText();
+        // CRITICAL: Do NOT put c_text into input.value
+        // That is what makes Samsung re-insert deleted text
         input.value = "";
         input.focus();
+        // Optional if you have it
+        try { Module.ccall('set_mobile_mode', null, ['number'], [1]); } catch(e){}
     }
 
     canvas.addEventListener("click", focusInput);
-    canvas.addEventListener("touchend", function(e) {
+    canvas.addEventListener("touchend", function(e){
         e.preventDefault();
         focusInput();
-    });
+    }, {passive:false});
 
-    // Samsung needs beforeinput to catch delete reliably
-    input.addEventListener("beforeinput", function(e) {
-        // e.inputType is the key
-        // console.log(e.inputType, e.data);
-
-        if (e.inputType === "deleteContentBackward") {
+    // This is the real fix for Samsung - beforeinput
+    input.addEventListener("beforeinput", function(e){
+        var cur = getCText();
+        if(e.inputType === "deleteContentBackward"){
             e.preventDefault();
-            Module.ccall('mobile_backspace', null, [], []); // or mobile_delete_backward 1
-            // FORCE flush Samsung's internal buffer
+            if(cur.length > 0){
+                setCText(cur.slice(0, -1));
+            }
+            input.value = ""; // flush Samsung composing buffer
+            return;
+        }
+        if(e.inputType === "deleteContentForward"){
+            e.preventDefault();
             input.value = "";
             return;
         }
-        if (e.inputType === "deleteContentForward") {
+        if(e.inputType === "insertText" && e.data){
             e.preventDefault();
-            Module.ccall('mobile_delete_forward', null, [], []);
+            setCText(cur + e.data);
             input.value = "";
-            return;
-        }
-        if (e.inputType === "insertText" && e.data) {
-            e.preventDefault();
-            // e.data can be more than 1 char on paste/autocorrect
-            Module.ccall('mobile_insert_text', null, ['string'], [e.data]);
-            input.value = ""; // clear immediately
             return;
         }
     });
 
-    // Fallback for keyboards that don't fire beforeinput properly
     var isComposing = false;
-    input.addEventListener("compositionstart", () => { isComposing = true; });
-    input.addEventListener("compositionend", (e) => {
+    input.addEventListener("compositionstart", function(){ isComposing = true; });
+    input.addEventListener("compositionend", function(e){
         isComposing = false;
-        if (e.data) {
-            Module.ccall('mobile_insert_text', null, ['string'], [e.data]);
+        if(e.data){
+            var cur = getCText();
+            setCText(cur + e.data);
         }
-        // Critical: async clear to kill the composing cache
-        setTimeout(() => { input.value = ""; }, 0);
+        setTimeout(function(){ input.value = ""; }, 0);
     });
 
-    input.addEventListener("input", (e) => {
-        if (isComposing) return;
-        // If beforeinput was not cancelled, we get here
-        // This only happens on very old WebViews
-        if (input.value) {
-            Module.ccall('mobile_insert_text', null, ['string'], [input.value]);
+    // Fallback for old WebViews
+    input.addEventListener("input", function(e){
+        if(isComposing) return;
+        if(input.value){
+            // Samsung sometimes bypasses beforeinput
+            var cur = getCText();
+            // if input contains more than 1 char, it's a flush of its cache
+            // ignore the cache, take only last char
+            var newChar = input.value.slice(-1);
+            // If the user actually typed normally, input.value == newChar
+            // If Samsung flushed, input.value == oldText+newChar, we still only want newChar
+            if(cur.length > 0 && input.value.length > 1 && input.value.indexOf(cur) === 0){
+                // this was the bug you were seeing
+                setCText(cur + newChar);
+            } else {
+                setCText(cur + input.value);
+            }
             input.value = "";
         }
     });
 
-    input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.keyCode === 13) {
+    input.addEventListener("keydown", function(e){
+        if(e.key === "Enter" || e.keyCode === 13){
             e.preventDefault();
             Module.ccall('mobile_enter', null, [], []);
             input.blur();
-        }
-        // Physical keyboard / Chrome desktop backspace
-        if (e.key === "Backspace") {
-            // Let beforeinput handle it on mobile, but handle desktop
-            if (!e.isTrusted || !('inputType' in InputEvent.prototype)) {
-                Module.ccall('mobile_backspace', null, [], []);
-            }
+            try { Module.ccall('set_mobile_mode', null, ['number'], [0]); } catch(e){}
         }
     });
-};
 
+    // your existing shell code can stay below
+};
 
       Module.setStatus('Downloading...');
       window.onerror = function() {
