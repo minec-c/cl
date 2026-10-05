@@ -68,12 +68,17 @@
 
 
 <input id="mobileInput"
-       type="text"
-       autocomplete="off"
-       autocorrect="off"
-       autocapitalize="off"
-       spellcheck="false"
-       style="position:absolute; left:-10000px; top:0; width:1px; height:1px; opacity:0;">
+  type="text"
+  inputmode="text"
+  enterkeyhint="done"
+  autocomplete="off"
+  autocorrect="off"
+  autocapitalize="off"
+  spellcheck="false"
+  data-gramm="false"
+  data-gramm_editor="false"
+  data-enable-grammarly="false"
+  style="position:fixed; left:-10000px; top:0; width:1px; height:1px; opacity:0;">
 
 
 
@@ -226,139 +231,83 @@ printErr: function(text) {
 //     });
 // };
 
-// Module.onRuntimeInitialized = function() {
-//     var input = document.getElementById("mobileInput");
-//     var canvas = document.getElementById("canvas");
-
-//     function syncInputFromC() {
-//         var text = Module.ccall('mobile_get_current_text', 'string', [], []);
-//         input.value = text ? text : "";
-//         input.setSelectionRange(input.value.length, input.value.length);
-//     }
-
-//     canvas.addEventListener("click", function() {
-//         syncInputFromC();
-//         input.focus();
-//     });
-
-//     canvas.addEventListener("touchend", function(e) {
-//         syncInputFromC();
-//         input.focus();
-//     });
-
-//     var isComposing = false;
-
-//     input.addEventListener("compositionstart", function() {
-//         isComposing = true;
-//     });
-
-//     input.addEventListener("compositionend", function() {
-//         isComposing = false;
-//         Module.ccall('mobile_set_text', null, ['string'], [input.value]);
-//     });
-
-//     // Intercept backspace to break Samsung IME's predictive shadow buffer
-//     input.addEventListener("keydown", function(e) {
-//         if (e.key === "Backspace" || e.keyCode === 8) {
-//             // Force a micro-task delay to intercept Samsung's cache retention 
-//             setTimeout(function() {
-//                 // Resetting the selection range forces the IME to re-evaluate 
-//                 // the current cursor position and drop its deleted-word memory cache
-//                 var len = input.value.length;
-//                 input.setSelectionRange(len, len);
-//             }, 0);
-//         }
-        
-//         // Handle the Android Enter/Go key
-//         if (e.key === "Enter" || e.keyCode === 13) {
-//             e.preventDefault();
-//             Module.ccall('mobile_enter', null, [], []);
-//             input.blur();
-//         }
-//     });
-
-//     input.addEventListener("input", function(e) {
-//         if (isComposing) return;
-
-//         Module.ccall(
-//             'mobile_set_text',
-//             null,
-//             ['string'],
-//             [input.value]
-//         );
-//     });
-// };
-
 Module.onRuntimeInitialized = function() {
     var input = document.getElementById("mobileInput");
     var canvas = document.getElementById("canvas");
 
-    var lastValue = "";
-
-    function syncInputFromC() {
-        var text = Module.ccall('mobile_get_current_text', 'string', [], []);
-        lastValue = text ? text : "";
-        input.value = lastValue;
-        input.setSelectionRange(lastValue.length, lastValue.length);
+    function focusInput() {
+        // Don't sync from C to input - this is what pollutes Samsung cache
+        input.value = "";
+        input.focus();
     }
 
-    canvas.addEventListener("click", function() {
-        syncInputFromC();
-        input.focus();
-    });
-
+    canvas.addEventListener("click", focusInput);
     canvas.addEventListener("touchend", function(e) {
-        syncInputFromC();
-        input.focus();
+        e.preventDefault();
+        focusInput();
     });
 
-    var isComposing = false;
+    // Samsung needs beforeinput to catch delete reliably
+    input.addEventListener("beforeinput", function(e) {
+        // e.inputType is the key
+        // console.log(e.inputType, e.data);
 
-    input.addEventListener("compositionstart", function() {
-        isComposing = true;
-    });
-
-    input.addEventListener("compositionend", function() {
-        isComposing = false;
-        lastValue = input.value;
-        Module.ccall('mobile_set_text', null, ['string'], [input.value]);
-    });
-
-    input.addEventListener("input", function(e) {
-        if (isComposing) return;
-
-        var newVal = input.value;
-
-        // Detect Samsung IME Cache Injection:
-        // If length increases by more than 1 character at a time (e.g., jumping from "A" to "ABC"), 
-        // it means the keyboard dumped its predictive cache.
-        if (newVal.length > lastValue.length + 1) {
-            // Extract only the newly typed character (the very last character of the new value)
-            var newlyTypedChar = newVal.slice(-1);
-            // Rebuild the clean string without the resurrected ghosts
-            newVal = lastValue + newlyTypedChar;
-            input.value = newVal;
-            input.setSelectionRange(newVal.length, newVal.length);
+        if (e.inputType === "deleteContentBackward") {
+            e.preventDefault();
+            Module.ccall('mobile_backspace', null, [], []); // or mobile_delete_backward 1
+            // FORCE flush Samsung's internal buffer
+            input.value = "";
+            return;
         }
-
-        // Update tracking reference
-        lastValue = newVal;
-
-        // Send the clean, verified string to C
-        Module.ccall(
-            'mobile_set_text',
-            null,
-            ['string'],
-            [newVal]
-        );
+        if (e.inputType === "deleteContentForward") {
+            e.preventDefault();
+            Module.ccall('mobile_delete_forward', null, [], []);
+            input.value = "";
+            return;
+        }
+        if (e.inputType === "insertText" && e.data) {
+            e.preventDefault();
+            // e.data can be more than 1 char on paste/autocorrect
+            Module.ccall('mobile_insert_text', null, ['string'], [e.data]);
+            input.value = ""; // clear immediately
+            return;
+        }
     });
 
-    // Handle the Android Enter/Go key
-    input.addEventListener("keydown", function(e) {
+    // Fallback for keyboards that don't fire beforeinput properly
+    var isComposing = false;
+    input.addEventListener("compositionstart", () => { isComposing = true; });
+    input.addEventListener("compositionend", (e) => {
+        isComposing = false;
+        if (e.data) {
+            Module.ccall('mobile_insert_text', null, ['string'], [e.data]);
+        }
+        // Critical: async clear to kill the composing cache
+        setTimeout(() => { input.value = ""; }, 0);
+    });
+
+    input.addEventListener("input", (e) => {
+        if (isComposing) return;
+        // If beforeinput was not cancelled, we get here
+        // This only happens on very old WebViews
+        if (input.value) {
+            Module.ccall('mobile_insert_text', null, ['string'], [input.value]);
+            input.value = "";
+        }
+    });
+
+    input.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.keyCode === 13) {
             e.preventDefault();
             Module.ccall('mobile_enter', null, [], []);
             input.blur();
+        }
+        // Physical keyboard / Chrome desktop backspace
+        if (e.key === "Backspace") {
+            // Let beforeinput handle it on mobile, but handle desktop
+            if (!e.isTrusted || !('inputType' in InputEvent.prototype)) {
+                Module.ccall('mobile_backspace', null, [], []);
+            }
         }
     });
 };
