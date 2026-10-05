@@ -172,6 +172,60 @@ printErr: function(text) {
 
 
 
+// Module.onRuntimeInitialized = function() {
+//     var input = document.getElementById("mobileInput");
+//     var canvas = document.getElementById("canvas");
+
+//     function syncInputFromC() {
+//         var text = Module.ccall('mobile_get_current_text', 'string', [], []);
+//         input.value = text ? text : "";
+//         input.setSelectionRange(input.value.length, input.value.length);
+//     }
+
+//     canvas.addEventListener("click", function() {
+//         syncInputFromC();
+//         input.focus();
+//     });
+
+//     canvas.addEventListener("touchend", function(e) {
+//         syncInputFromC();
+//         input.focus();
+//     });
+
+//     var isComposing = false;
+
+//     input.addEventListener("compositionstart", function() {
+//         isComposing = true;
+//     });
+
+//     input.addEventListener("compositionend", function() {
+//         isComposing = false;
+//         Module.ccall('mobile_set_text', null, ['string'], [input.value]);
+//     });
+
+//     input.addEventListener("input", function(e) {
+//         if (isComposing) return;
+
+//         // If Samsung keyboard tries to sneak back deleted characters via predictive cache,
+//         // this catches sudden unexpected value jumps and keeps it synchronized.
+//         Module.ccall(
+//             'mobile_set_text',
+//             null,
+//             ['string'],
+//             [input.value]
+//         );
+//     });
+
+//     // Handle the Android Enter/Go key
+//     input.addEventListener("keydown", function(e) {
+//         if (e.key === "Enter" || e.keyCode === 13) {
+//             e.preventDefault();
+//             Module.ccall('mobile_enter', null, [], []);
+//             input.blur();
+//         }
+//     });
+// };
+
 Module.onRuntimeInitialized = function() {
     var input = document.getElementById("mobileInput");
     var canvas = document.getElementById("canvas");
@@ -203,11 +257,29 @@ Module.onRuntimeInitialized = function() {
         Module.ccall('mobile_set_text', null, ['string'], [input.value]);
     });
 
+    // Intercept backspace to break Samsung IME's predictive shadow buffer
+    input.addEventListener("keydown", function(e) {
+        if (e.key === "Backspace" || e.keyCode === 8) {
+            // Force a micro-task delay to intercept Samsung's cache retention 
+            setTimeout(function() {
+                // Resetting the selection range forces the IME to re-evaluate 
+                // the current cursor position and drop its deleted-word memory cache
+                var len = input.value.length;
+                input.setSelectionRange(len, len);
+            }, 0);
+        }
+        
+        // Handle the Android Enter/Go key
+        if (e.key === "Enter" || e.keyCode === 13) {
+            e.preventDefault();
+            Module.ccall('mobile_enter', null, [], []);
+            input.blur();
+        }
+    });
+
     input.addEventListener("input", function(e) {
         if (isComposing) return;
 
-        // If Samsung keyboard tries to sneak back deleted characters via predictive cache,
-        // this catches sudden unexpected value jumps and keeps it synchronized.
         Module.ccall(
             'mobile_set_text',
             null,
@@ -215,18 +287,7 @@ Module.onRuntimeInitialized = function() {
             [input.value]
         );
     });
-
-    // Handle the Android Enter/Go key
-    input.addEventListener("keydown", function(e) {
-        if (e.key === "Enter" || e.keyCode === 13) {
-            e.preventDefault();
-            Module.ccall('mobile_enter', null, [], []);
-            input.blur();
-        }
-    });
 };
-
-
 
 
       Module.setStatus('Downloading...');
