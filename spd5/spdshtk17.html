@@ -226,14 +226,80 @@ printErr: function(text) {
 //     });
 // };
 
+// Module.onRuntimeInitialized = function() {
+//     var input = document.getElementById("mobileInput");
+//     var canvas = document.getElementById("canvas");
+
+//     function syncInputFromC() {
+//         var text = Module.ccall('mobile_get_current_text', 'string', [], []);
+//         input.value = text ? text : "";
+//         input.setSelectionRange(input.value.length, input.value.length);
+//     }
+
+//     canvas.addEventListener("click", function() {
+//         syncInputFromC();
+//         input.focus();
+//     });
+
+//     canvas.addEventListener("touchend", function(e) {
+//         syncInputFromC();
+//         input.focus();
+//     });
+
+//     var isComposing = false;
+
+//     input.addEventListener("compositionstart", function() {
+//         isComposing = true;
+//     });
+
+//     input.addEventListener("compositionend", function() {
+//         isComposing = false;
+//         Module.ccall('mobile_set_text', null, ['string'], [input.value]);
+//     });
+
+//     // Intercept backspace to break Samsung IME's predictive shadow buffer
+//     input.addEventListener("keydown", function(e) {
+//         if (e.key === "Backspace" || e.keyCode === 8) {
+//             // Force a micro-task delay to intercept Samsung's cache retention 
+//             setTimeout(function() {
+//                 // Resetting the selection range forces the IME to re-evaluate 
+//                 // the current cursor position and drop its deleted-word memory cache
+//                 var len = input.value.length;
+//                 input.setSelectionRange(len, len);
+//             }, 0);
+//         }
+        
+//         // Handle the Android Enter/Go key
+//         if (e.key === "Enter" || e.keyCode === 13) {
+//             e.preventDefault();
+//             Module.ccall('mobile_enter', null, [], []);
+//             input.blur();
+//         }
+//     });
+
+//     input.addEventListener("input", function(e) {
+//         if (isComposing) return;
+
+//         Module.ccall(
+//             'mobile_set_text',
+//             null,
+//             ['string'],
+//             [input.value]
+//         );
+//     });
+// };
+
 Module.onRuntimeInitialized = function() {
     var input = document.getElementById("mobileInput");
     var canvas = document.getElementById("canvas");
 
+    var lastValue = "";
+
     function syncInputFromC() {
         var text = Module.ccall('mobile_get_current_text', 'string', [], []);
-        input.value = text ? text : "";
-        input.setSelectionRange(input.value.length, input.value.length);
+        lastValue = text ? text : "";
+        input.value = lastValue;
+        input.setSelectionRange(lastValue.length, lastValue.length);
     }
 
     canvas.addEventListener("click", function() {
@@ -254,38 +320,46 @@ Module.onRuntimeInitialized = function() {
 
     input.addEventListener("compositionend", function() {
         isComposing = false;
+        lastValue = input.value;
         Module.ccall('mobile_set_text', null, ['string'], [input.value]);
-    });
-
-    // Intercept backspace to break Samsung IME's predictive shadow buffer
-    input.addEventListener("keydown", function(e) {
-        if (e.key === "Backspace" || e.keyCode === 8) {
-            // Force a micro-task delay to intercept Samsung's cache retention 
-            setTimeout(function() {
-                // Resetting the selection range forces the IME to re-evaluate 
-                // the current cursor position and drop its deleted-word memory cache
-                var len = input.value.length;
-                input.setSelectionRange(len, len);
-            }, 0);
-        }
-        
-        // Handle the Android Enter/Go key
-        if (e.key === "Enter" || e.keyCode === 13) {
-            e.preventDefault();
-            Module.ccall('mobile_enter', null, [], []);
-            input.blur();
-        }
     });
 
     input.addEventListener("input", function(e) {
         if (isComposing) return;
 
+        var newVal = input.value;
+
+        // Detect Samsung IME Cache Injection:
+        // If length increases by more than 1 character at a time (e.g., jumping from "A" to "ABC"), 
+        // it means the keyboard dumped its predictive cache.
+        if (newVal.length > lastValue.length + 1) {
+            // Extract only the newly typed character (the very last character of the new value)
+            var newlyTypedChar = newVal.slice(-1);
+            // Rebuild the clean string without the resurrected ghosts
+            newVal = lastValue + newlyTypedChar;
+            input.value = newVal;
+            input.setSelectionRange(newVal.length, newVal.length);
+        }
+
+        // Update tracking reference
+        lastValue = newVal;
+
+        // Send the clean, verified string to C
         Module.ccall(
             'mobile_set_text',
             null,
             ['string'],
-            [input.value]
+            [newVal]
         );
+    });
+
+    // Handle the Android Enter/Go key
+    input.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" || e.keyCode === 13) {
+            e.preventDefault();
+            Module.ccall('mobile_enter', null, [], []);
+            input.blur();
+        }
     });
 };
 
