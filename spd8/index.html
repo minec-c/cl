@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mobile Spreadsheet</title>
+  <style>
+    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f4f4f4; }
+    #mobileSpreadsheet {
+      display: grid;
+      grid-template-columns: repeat(10, 80px);
+      grid-template-rows: repeat(5, 30px);
+      gap: 1px;
+      background: #ccc;
+      border: 1px solid #999;
+    }
+/*    .cll {
+      background: #fff;
+      border: none;      // Removes default input borders
+      outline: none;
+      padding: 4px;
+      font-size: 13px;
+      box-sizing: border-box;  //Crucial for keeping inputs at exactly 80x30px
+    }
+
+    .cll:focus {
+      background: #e8f0fe;
+      box-shadow: inset 0 0 0 2px #1a73e8;
+    }
+*/
+
+    .cll{
+      background:#121212;
+      color:#dcdcdc;
+      border:none;
+      outline:none;
+      padding:4px;
+      font-size:13px;
+      box-sizing:border-box;
+    }
+    .cll.type-void{color:rgb(90,90,90);}
+    .cll.type-num{color:rgb(90,255,90);}
+    .cll.type-text{color:rgb(220,220,220);}
+    .cll.type-expr{color:rgb(90,200,255);}
+    .cll.type-err{color:rgb(255,90,90);}
+    .cll:focus{background:#1e1e1e;
+               box-shadow:inset 0 0 0 2px yellow;
+    }
+
+
+  </style>
+</head>
+<body>
+
+
+  <!-- 5x5 Grid explicitly laid out in pure HTML -->
+  <div id="mobileSpreadsheet">
+    <!-- Row 1 -->
+    <input type="text" class="cll" id="A1">
+    <input type="text" class="cll" id="B1">
+    <input type="text" class="cll" id="C1">
+    <input type="text" class="cll" id="D1">
+    <input type="text" class="cll" id="E1">
+    <input type="text" class="cll" id="F1">
+    <input type="text" class="cll" id="G1">
+    <input type="text" class="cll" id="H1">
+    <input type="text" class="cll" id="I1">
+    <input type="text" class="cll" id="J1">
+    
+    <!-- Row 2 -->
+    <input type="text" class="cll" id="A2">
+    <input type="text" class="cll" id="B2">
+    <input type="text" class="cll" id="C2">
+    <input type="text" class="cll" id="D2">
+    <input type="text" class="cll" id="E2">
+    <input type="text" class="cll" id="F2">
+    <input type="text" class="cll" id="G2">
+    <input type="text" class="cll" id="H2">
+    <input type="text" class="cll" id="I2">
+    <input type="text" class="cll" id="J2">
+
+    <!-- Row 3 -->
+    <input type="text" class="cll" id="A3">
+    <input type="text" class="cll" id="B3">
+    <input type="text" class="cll" id="C3">
+    <input type="text" class="cll" id="D3">
+    <input type="text" class="cll" id="E3">
+    <input type="text" class="cll" id="F3">
+    <input type="text" class="cll" id="G3">
+    <input type="text" class="cll" id="H3">
+    <input type="text" class="cll" id="I3">
+    <input type="text" class="cll" id="J3">
+
+    <!-- Row 4 -->
+    <input type="text" class="cll" id="A4">
+    <input type="text" class="cll" id="B4">
+    <input type="text" class="cll" id="C4">
+    <input type="text" class="cll" id="D4">
+    <input type="text" class="cll" id="E4">
+    <input type="text" class="cll" id="F4">
+    <input type="text" class="cll" id="G4">
+    <input type="text" class="cll" id="H4">
+    <input type="text" class="cll" id="I4">
+    <input type="text" class="cll" id="J4">
+
+    <!-- Row 5 -->
+    <input type="text" class="cll" id="A5">
+    <input type="text" class="cll" id="B5">
+    <input type="text" class="cll" id="C5">
+    <input type="text" class="cll" id="D5">
+    <input type="text" class="cll" id="E5">
+    <input type="text" class="cll" id="F5">
+    <input type="text" class="cll" id="G5">
+    <input type="text" class="cll" id="I5">
+    <input type="text" class="cll" id="J5">
+
+  </div>
+<script>
+
+
+
+alert("HTML JavaScript is running");
+// Track active keys globally to handle combinations (e.g., Shift + 8)
+const pressedKeys = new Set();
+document.addEventListener('keydown', (e) => {
+    pressedKeys.add(e.code);
+    // Example test for an arbitrary key combination (e.g., KeyA + KeyB)
+    if (pressedKeys.has('KeyA') && pressedKeys.has('KeyB')) {
+        alert("Combination of KeyA + KeyB detected!");
+    }
+});
+document.addEventListener('keyup', (e) => {
+    // FIX: Changed 'deleted' to 'delete' so keys clear properly on release
+    pressedKeys.delete(e.code);
+    // Trigger an alert when a single key is released (if inside a spreadsheet cell)
+    var el = document.activeElement;
+    if (el && el.classList.contains('cll')) {
+        // You can inspect e.key or e.code here when the key goes up
+        // alert("Key released: " + e.key);
+    }
+});
+// Main cell keydown handler (Handles Enter, Arrow keys, and normal typing)
+function handleCellKeydown(e) {
+    var el = e.target;
+    if (!el.classList.contains('cll')) return;
+    // Handle Enter keypresses to evaluate spreadsheet cell logic
+//////----------
+//////11/10/2026 18:42:02
+//    if (e.key === 'Enter') {
+//        alert("Enter detected");
+//        e.preventDefault();
+//        var p = cellCoords(el);
+//        Module.ccall(
+//            'mobile_select_cell',
+//            null,
+//            ['number', 'number'],
+//            [p.row, p.col]
+//        );
+//        Module.ccall(
+//            'mobile_set_text',
+//            null,
+//            ['string'],
+//            [el.value]
+//        );
+//        Module.ccall(
+//            'mobile_enter',
+//            null,
+//            [],
+//            []
+//        );
+//        //var result = Module.ccall(
+//          el.value = Module.ccall(
+//        //    'mobile_get_cell_result',
+//            'mobile_get_cell_display',
+//            'string',
+//            ['number', 'number'],
+//            [p.row, p.col]
+//        );
+//        //el.value = result;
+//        var type = Module.ccall(
+//            'mobile_get_cell_type',
+//            'number',
+//            ['number', 'number'],
+//            [p.row, p.col]
+//        );
+//        el.classList.remove('type-void', 'type-num', 'type-text', 'type-expr', 'type-err');
+//        var classes = ['type-void', 'type-num', 'type-text', 'type-expr', 'type-err'];
+//        el.classList.add(classes[type] || 'type-err');
+////        return;	//1110261800 commented.
+//	//1110261800 added.
+//	try {
+//	    console.log("mobile_enter:", typeof Module._mobile_enter);
+//	    console.log("mobile_set_text:", typeof Module._mobile_set_text);
+//	    console.log("mobile_select_cell:", typeof Module._mobile_select_cell);
+//	    console.log("mobile_get_cell_result:", typeof Module._mobile_get_cell_result);
+//	    var p = cellCoords(el);
+//	    Module.ccall('mobile_select_cell', null,
+//	        ['number', 'number'], [p.row, p.col]);
+//	    Module.ccall('mobile_set_text', null,
+//	        ['string'], [el.value]);
+//	    Module.ccall('mobile_enter', null, [], []);
+//	    var result = Module.ccall('mobile_get_cell_result', 'string',
+//	        ['number', 'number'], [p.row, p.col]);
+//	    console.log("Cell:", el.id, "Input:", el.value, "Result:", result);
+//	} catch (err) {
+//	    console.error("C bridge error:", err);
+//	}
+//    return;
+//    }
+//
+
+
+
+////----------
+
+////11/10/2026 18:44:22
+        if (e.key === 'Enter') {
+            e.preventDefault();
+        
+            var p = cellCoords(el);
+        
+            Module.ccall('mobile_select_cell', null,
+                ['number', 'number'], [p.row, p.col]);
+        
+            Module.ccall('mobile_set_text', null,
+                ['string'], [el.value]);
+        
+            Module.ccall('mobile_enter', null, [], []);
+        
+            el.value = Module.ccall('mobile_get_cell_display', 'string',
+                ['number', 'number'], [p.row, p.col]);
+        
+            var type = Module.ccall('mobile_get_cell_type', 'number',
+                ['number', 'number'], [p.row, p.col]);
+        
+            var classes = [
+                'type-void', 'type-num', 'type-text',
+                'type-expr', 'type-err'
+            ];
+        
+            el.classList.remove(
+                'type-void', 'type-num', 'type-text',
+                'type-expr', 'type-err'
+            );
+        
+            el.classList.add(classes[type] || 'type-err');
+        
+            return;
+        }
+
+
+
+
+    // Handle Arrow Navigation
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        var inputs = document.querySelectorAll('.cll');
+        var i;
+        for (i = 0; i < inputs.length; i++) {
+            if (inputs[i] === el) break;
+        }
+        var next = e.key === 'ArrowDown' ? i + 10 : i - 10; 	//? i + 5 : i - 5;
+        if (inputs[next]) {
+            e.preventDefault();
+            inputs[next].focus();
+        }
+    }
+}
+// FIX: Attach the handleCellKeydown function to the document
+document.addEventListener('keydown', handleCellKeydown);
+function cellCoords(el) {
+    return {
+        row: parseInt(el.id.slice(1), 10) - 1,
+        col: el.id.charCodeAt(0) - 65
+    };
+}
+document.getElementById('mobileSpreadsheet').addEventListener('focusin',function(e){
+    var el = e.target;
+    if (!el.classList.contains('cll')) return;
+    var p = cellCoords(el);
+    Module.ccall('mobile_select_cell',null,['number','number'],[p.row,p.col]);
+    Module.ccall('mobile_begin_edit',null,['number','number'],[p.row,p.col]);
+//    el.value = Module.ccall('mobile_get_cell_display','string',['number','number'],[p.row,p.col]);
+      el.value = Module.ccall('mobile_get_cell_edit_text', 'string',['number', 'number'], [p.row, p.col]);
+    el.setSelectionRange(el.value.length, el.value.length);
+});
+
+function copyCell(el){
+  const p = cellCoords(el);
+  Module.ccall(
+    'mobile_copy_cell',
+    null,
+    ['number','number'],
+    [p.row,p.col]
+  );
+}
+
+function pasteCell(el){
+  const p = cellCoords(el);
+  const text = Module.ccall(
+    'mobile_paste_cell',
+    'string',
+    ['number','number'],
+    [p.row,p.col]
+  );
+  el.value = text;
+}
+
+function pasteSpreadsheetText(text){
+	Module.ccall(
+	'ps_tb',
+	'void',
+	['string'],
+	[text]);
+}
+
+document.addEventListener('copy', function(e) {
+    var el = document.activeElement;
+    if (!el || !el.classList.contains('cll')) return;
+    copyCell(el);
+});
+//document.addEventListener('paste', function(e) {
+    var el = document.activeElement;
+    if (!el || !el.classList.contains('cll')) return;
+    e.preventDefault();
+    pasteCell(el);
+});
+document.addEventListener('paste', function(event) {
+  var text = event.clipboardData.getData('text/plain');
+  pasteSpreadsheetText(text);
+  event.preventDefault();
+});
+
+
+document.addEventListener('paste', function(event) {
+    var el = document.activeElement;
+    if (!el || !el.classList.contains('cll')) return;
+    event.preventDefault();
+    var text = event.clipboardData.getData('text/plain');
+    var p = cellCoords(el);
+    // Make sure C starts pasting at the focused cell.
+    Module.ccall(
+        'mobile_select_cell',
+        null,
+        ['number', 'number'],
+        [p.row, p.col]
+    );
+    // Paste the complete tab-separated table into C.
+    Module.ccall(
+        'ps_tb',
+        null,
+        ['string'],
+        [text]
+    );
+    // Refresh every visible HTML cell from C.
+    var inputs = document.querySelectorAll('.cll');
+    var classes = [
+        'type-void', 'type-num', 'type-text',
+        'type-expr', 'type-err'
+    ];
+    for (var i = 0; i < inputs.length; i++) {
+        var cell = inputs[i];
+        var pos = cellCoords(cell);
+        var value = Module.ccall(
+            'mobile_get_cell_display',
+            'string',
+            ['number', 'number'],
+            [pos.row, pos.col]
+        );
+        var type = Module.ccall(
+            'mobile_get_cell_type',
+            'number',
+            ['number', 'number'],
+            [pos.row, pos.col]
+        );
+        cell.value = value;
+        cell.classList.remove(
+            'type-void', 'type-num', 'type-text',
+            'type-expr', 'type-err'
+        );
+        cell.classList.add(classes[type] || 'type-err');
+    }
+    // Keep the original starting cell focused.
+    el.focus();
+});
+
+
+
+</script>
+
+<script src="spreadsheet.js"></script>
+</body>
+<script>
+console.log("Module:",typeof Module);
+console.log("Module.ccall:",typeof Module.ccall);
+</script>
+</html>
