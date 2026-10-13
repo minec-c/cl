@@ -318,16 +318,16 @@ document.addEventListener('copy', function(e) {
     copyCell(el);
 });
 //document.addEventListener('paste', function(e) {
-    var el = document.activeElement;
-    if (!el || !el.classList.contains('cll')) return;
-    e.preventDefault();
-    pasteCell(el);
-});
-document.addEventListener('paste', function(event) {
-  var text = event.clipboardData.getData('text/plain');
-  pasteSpreadsheetText(text);
-  event.preventDefault();
-});
+//    var el = document.activeElement;
+//    if (!el || !el.classList.contains('cll')) return;
+//    e.preventDefault();
+//    pasteCell(el);
+//});
+//document.addEventListener('paste', function(event) {
+//  var text = event.clipboardData.getData('text/plain');
+//  pasteSpreadsheetText(text);
+//  event.preventDefault();
+//});
 
 
 document.addEventListener('paste', function(event) {
