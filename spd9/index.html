@@ -352,7 +352,7 @@ document.addEventListener('paste', function(event) {
         [p.row, p.col]
     );
     // Paste the complete tab-separated table into C.
-    if (text === internalCopiedtext && internalCellCopy) {
+    if (text === internalCopiedText && internalCellCopy) {
       pasteCell(el);
       internalCellCopy = false;
     } else {
