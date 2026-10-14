@@ -316,6 +316,8 @@ document.addEventListener('copy', function(e) {
     var el = document.activeElement;
     if (!el || !el.classList.contains('cll')) return;
     copyCell(el);
+	internalCellCopy = true;		//added 1310262111
+	internalCopiedText = el.value;	//added 1310262111
 });
 //document.addEventListener('paste', function(e) {
 //    var el = document.activeElement;
