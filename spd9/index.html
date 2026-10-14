@@ -286,11 +286,12 @@ document.getElementById('mobileSpreadsheet').addEventListener('focusin',function
 function copyCell(el){
   const p = cellCoords(el);
   Module.ccall(
-    'mobile_copy_cell',
+    'mobile_copy_cell', 
     null,
     ['number','number'],
     [p.row,p.col]
   );
+  console.log("Copied cell:", el.id, "value:", el.value); //added 1310262205
 }
 
 function pasteCell(el){
@@ -301,6 +302,7 @@ function pasteCell(el){
     ['number','number'],
     [p.row,p.col]
   );
+  console.log("Pasted into:", el.id, "result:", text);
   el.value = text;
 }
 
