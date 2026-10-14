@@ -339,6 +339,7 @@ internalCopiedText = el.value;//added 1310262111
 document.addEventListener('paste', function(event) {
     var el = document.activeElement;
     if (!el || !el.classList.contains('cll')) return;
+    console.log("Paste event received:", el.id);
     event.preventDefault();
     var text = event.clipboardData.getData('text/plain');
     var p = cellCoords(el);
