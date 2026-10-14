@@ -352,12 +352,17 @@ document.addEventListener('paste', function(event) {
         [p.row, p.col]
     );
     // Paste the complete tab-separated table into C.
-    Module.ccall(
-        'ps_tb',
-        null,
-        ['string'],
-        [text]
-    );
+    if (text === internalCopiedtext && internalCellCopy) {
+      pasteCell(el);
+      internalCellCopy = false;
+    } else {
+      Module.ccall(
+          'ps_tb',
+          null,
+          ['string'],
+          [text]
+      );
+    }
     // Refresh every visible HTML cell from C.
     var inputs = document.querySelectorAll('.cll');
     var classes = [
