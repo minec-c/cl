@@ -117,6 +117,9 @@
 <script>
 
 var internalCellCopy = false;
+document.querySelectorAll('.cll').forEach(function(el) {
+  el.setAttribute('enterkeyhint', 'enter');
+});
 var internalCopiedText = "";
 
 alert("HTML JavaScript is running");
