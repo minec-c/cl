@@ -1,0 +1,175 @@
+
+<script>
+var internalCellCopy = false;
+document.querySelectorAll('.cll').forEach(function(el) {
+  el.setAttribute('enterkeyhint', 'enter');
+});
+var internalCopiedText = "";
+alert("HTML JavaScript is running");
+const pressedKeys = new Set();
+document.addEventListener('keydown', (e) => {
+    pressedKeys.add(e.code);
+    if (pressedKeys.has('KeyA') && pressedKeys.has('KeyB')) {
+        alert("Combination of KeyA + KeyB detected!");
+    }
+});
+document.addEventListener('keyup', (e) => {
+    pressedKeys.delete(e.code);
+    var el = document.activeElement;
+    if (el && el.classList.contains('cll')) {
+    }
+});
+function handleCellKeydown(e) {
+    var el = e.target;
+    if (!el.classList.contains('cll')) return;
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            var p = cellCoords(el);
+            Module.ccall('mobile_select_cell', null,
+                ['number', 'number'], [p.row, p.col]);
+            Module.ccall('mobile_set_text', null,
+                ['string'], [el.value]);
+            Module.ccall('mobile_enter', null, [], []);
+            el.value = Module.ccall('mobile_get_cell_display', 'string',
+                ['number', 'number'], [p.row, p.col]);
+            var type = Module.ccall('mobile_get_cell_type', 'number',
+                ['number', 'number'], [p.row, p.col]);
+            var classes = [
+                'type-void', 'type-num', 'type-text',
+                'type-expr', 'type-err'
+            ];
+            el.classList.remove(
+                'type-void', 'type-num', 'type-text',
+                'type-expr', 'type-err'
+            );
+            el.classList.add(classes[type] || 'type-err');
+            return;
+        }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        var inputs = document.querySelectorAll('.cll');
+        var i;
+        for (i = 0; i < inputs.length; i++) {
+            if (inputs[i] === el) break;
+        }
+        var next = e.key === 'ArrowDown' ? i + 10 : i - 10; 
+        if (inputs[next]) {
+            e.preventDefault();
+            inputs[next].focus();
+        }
+    }
+}
+document.addEventListener('keydown', handleCellKeydown);
+function cellCoords(el) {
+    return {
+        row: parseInt(el.id.slice(1), 10) - 1,
+        col: el.id.charCodeAt(0) - 65
+    };
+}
+document.getElementById('mobileSpreadsheet').addEventListener('focusin',function(e){
+    var el = e.target;
+    if (!el.classList.contains('cll')) return;
+    var p = cellCoords(el);
+    Module.ccall('mobile_select_cell',null,['number','number'],[p.row,p.col]);
+    Module.ccall('mobile_begin_edit',null,['number','number'],[p.row,p.col]);
+      el.value = Module.ccall('mobile_get_cell_edit_text', 'string',['number', 'number'], [p.row, p.col]);
+    el.setSelectionRange(el.value.length, el.value.length);
+});
+function copyCell(el){
+  const p = cellCoords(el);
+  Module.ccall(
+    'mobile_copy_cell', 
+    null,
+    ['number','number'],
+    [p.row,p.col]
+  );
+  console.log("Copied cell:", el.id, "value:", el.value); 
+}
+function pasteCell(el){
+  const p = cellCoords(el);
+  const text = Module.ccall(
+    'mobile_paste_cell',
+    'string',
+    ['number','number'],
+    [p.row,p.col]
+  );
+  console.log("Pasted into:", el.id, "result:", text);
+  el.value = text;
+  console.log("Pasted2 into:", el.id, "result:", text);
+}
+function pasteSpreadsheetText(text){
+Module.ccall(
+'ps_tb',
+'void',
+['string'],
+[text]);
+}
+document.addEventListener('copy', function(e) {
+    var el = document.activeElement;
+    if (!el || !el.classList.contains('cll')) return;
+    copyCell(el);
+internalCellCopy = true;
+internalCopiedText = el.value;
+});
+document.addEventListener('paste', function(event) {
+    var el = document.activeElement;
+    if (!el || !el.classList.contains('cll')) return;
+    console.log("Paste event received:", el.id);
+    event.preventDefault();
+    var text = event.clipboardData.getData('text/plain');
+    var p = cellCoords(el);
+    Module.ccall(
+        'mobile_select_cell',
+        null,
+        ['number', 'number'],
+        [p.row, p.col]
+    );
+    if (text === internalCopiedText && internalCellCopy) {
+      pasteCell(el);
+      internalCellCopy = false;
+    } else {
+      Module.ccall(
+          'ps_tb',
+          null,
+          ['string'],
+          [text]
+      );
+    }
+    var inputs = document.querySelectorAll('.cll');
+    var classes = [
+        'type-void', 'type-num', 'type-text',
+        'type-expr', 'type-err'
+    ];
+    for (var i = 0; i < inputs.length; i++) {
+        var cell = inputs[i];
+        var pos = cellCoords(cell);
+        var value = Module.ccall(
+            'mobile_get_cell_display',
+            'string',
+            ['number', 'number'],
+            [pos.row, pos.col]
+        );
+        var type = Module.ccall(
+            'mobile_get_cell_type',
+            'number',
+            ['number', 'number'],
+            [pos.row, pos.col]
+        );
+        cell.value = value;
+        cell.classList.remove(
+            'type-void', 'type-num', 'type-text',
+            'type-expr', 'type-err'
+        );
+        cell.classList.add(classes[type] || 'type-err');
+    }
+    el.focus();
+});
+</script>
+<script src="spreadsheet.js"></script>
+</body>
+<script>
+console.log("Module:",typeof Module);
+console.log("Module.ccall:",typeof Module.ccall);
+</script>
+</html>
+
+
