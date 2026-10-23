@@ -357,7 +357,7 @@ document.addEventListener('paste', function(event) {
     // Paste the complete tab-separated table into C.
     if (text === internalCopiedText && internalCellCopy) {
       pasteCell(el);
-      internalCellCopy = false;
+      // internalCellCopy = false;
     } else {
       Module.ccall(
           'ps_tb',
